@@ -108,10 +108,10 @@
 controls=menu,gap,subtitles,<has_many_audio>audio,<has_many_video>video,<has_many_edition>editions,<stream>stream-quality,gap,space,speed,space,shuffle,loop-playlist,loop-file,gap,prev,items,next,gap,fullscreen
 ```
 
-在`controls`控件配置项中添加`button:danmaku`的弹幕搜索按钮和`cycle:toggle_on:show_danmaku@uosc_danmaku:on=toggle_on/off=toggle_off?弹幕开关`的弹幕开关。放置的位置就是实际会在在进度条上方的控件条中显示的位置，可以放在自己喜欢的位置。我个人把这两个控件放在了`<stream>stream-quality`画质选择控件后边。添加完控件的配置大概如下：
+在`controls`控件配置项中添加`button:danmaku_search`的弹幕搜索按钮和`cycle:toggle_on:show_danmaku@uosc_danmaku:on=toggle_on/off=toggle_off?弹幕开关`的弹幕开关。放置的位置就是实际会在在进度条上方的控件条中显示的位置，可以放在自己喜欢的位置。我个人把这两个控件放在了`<stream>stream-quality`画质选择控件后边。添加完控件的配置大概如下：
 
 ```
-controls=menu,gap,subtitles,<has_many_audio>audio,<has_many_video>video,<has_many_edition>editions,<stream>stream-quality,button:danmaku,cycle:toggle_on:show_danmaku@uosc_danmaku:on=toggle_on/off=toggle_off?弹幕开关,gap,space,speed,space,shuffle,loop-playlist,loop-file,gap,prev,items,next,gap,fullscreen
+controls=menu,gap,subtitles,<has_many_audio>audio,<has_many_video>video,<has_many_edition>editions,<stream>stream-quality,button:danmaku_search,cycle:toggle_on:show_danmaku@uosc_danmaku:on=toggle_on/off=toggle_off?弹幕开关,gap,space,speed,space,shuffle,loop-playlist,loop-file,gap,prev,items,next,gap,fullscreen
 ```
 
 ##### 旧版uosc控件配置步骤
@@ -198,9 +198,18 @@ C:\Users\Tony\Downloads\example.xml
 
 现已更新增强了此菜单。现在在该菜单内可以可视化地控制所有弹幕源，删除或者屏蔽任何不想要的弹幕源。对于自己手动添加的弹幕源，可以进行移除。对于来自弹弹play的弹幕源，无法进行移除，但是可以进行屏蔽，将不会再从屏蔽过的弹幕源获取弹幕。当然，也可以解除对来自弹弹play的弹幕源的屏蔽。另外需要注意在菜单内对于弹幕源的可视化操作都需要下次打开视频，或者重新用弹幕搜索功能加载一次弹幕才会生效。
 
+#### 实时修改弹幕样式（可选）
+打开弹幕样式修改菜单，可在播放中实时修改弹幕样式(注：该功能依赖**uosc**，若无，该功能不可用)。想要启用此功能，需要参照[uosc控件配置](#uosc控件配置)，根据uosc版本添加`button:danmaku_palette`或`command:palette:script-message open_setup_danmaku_menu?弹幕样式`到`uosc.conf`的controls配置项中。
+
+想要通过快捷键使用此功能，请添加类似下面的配置到`input.conf`中。从源添加弹幕功能对应的脚本消息为`open_setup_danmaku_menu`。
+
+```
+key script-message open_setup_danmaku_menu
+```
+
 #### 弹幕设置（可选）
 
-打开多级功能复合菜单，包含了插件目前所有的图形化功能，另外插件的**弹幕样式实时修改功能**目前只存在于这个菜单中。想要启用此功能，需要参照[uosc控件配置](#uosc控件配置)，根据uosc版本添加`button:danmaku_menu`或`command:add_box:script-message open_add_total_menu?弹幕设置`到`uosc.conf`的controls配置项中。
+打开多级功能复合菜单，包含了插件目前所有的图形化功能。想要启用此功能，需要参照[uosc控件配置](#uosc控件配置)，根据uosc版本添加`button:danmaku_menu`或`command:add_box:script-message open_add_total_menu?弹幕设置`到`uosc.conf`的controls配置项中。
 
 
 想要通过快捷键使用此功能，请添加类似下面的配置到`input.conf`中。从源添加弹幕功能对应的脚本消息为`open_add_total_menu`。
