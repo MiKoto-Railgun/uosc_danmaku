@@ -218,6 +218,16 @@ function open_input_menu_get()
 end
 
 function open_input_menu_uosc()
+    local items = {}
+
+    if danmaku.anime and danmaku.episode then
+        items[#items + 1] = {
+            hint = string.format("已关联弹幕：%s-%s", danmaku.anime, danmaku.episode),
+            keep_open = true,
+            selectable = false,
+        }
+    end
+
     local menu_props = {
         type = "menu_danmaku",
         title = "在此处输入番剧名称",
@@ -226,15 +236,7 @@ function open_input_menu_uosc()
         search_suggestion = get_title(true),
         on_search = { "script-message-to", mp.get_script_name(), "search-anime-event" },
         footnote = "使用enter或ctrl+enter进行搜索",
-        items = {
-            {
-                value = "",
-                hint = "使用enter或ctrl+enter进行搜索",
-                keep_open = true,
-                selectable = false,
-                align = "center",
-            },
-        },
+        items = items
     }
     local json_props = utils.format_json(menu_props)
     mp.commandv("script-message-to", "uosc", "open-menu", json_props)
@@ -269,15 +271,6 @@ function open_add_menu_uosc()
         end
         table.insert(sources, item)
     end
-    table.insert(sources, 1,
-        {
-            value = "",
-            hint = "对弹幕源的更改下次播放视频才会生效",
-            keep_open = true,
-            selectable = false,
-            align = "center",
-        }
-    )
     local menu_props = {
         type = "menu_source",
         title = "在此输入源地址url",
@@ -380,6 +373,18 @@ function open_add_total_menu_uosc()
         { title = "从源添加弹幕", action = "open_add_source_menu" },
         { title = "弹幕设置", action = "open_setup_danmaku_menu" },
     }
+
+
+    if danmaku.anime and danmaku.episode then
+        items[#items + 1] = {
+            title = string.format("已关联弹幕：%s-%s", danmaku.anime, danmaku.episode),
+            bold = true,
+            italic = true,
+            keep_open = true,
+            selectable = false,
+        }
+    end
+
     for _, config in ipairs(total_menu_items_config) do
         table.insert(items, {
             title = config.title,
@@ -622,6 +627,7 @@ mp.register_script_message('menu-event', function(json)
             remove_source_from_history(event.value)
             mp.commandv("script-message-to", "uosc", "close-menu", "menu_source")
             open_add_menu_uosc()
+            load_danmaku(true)
         end
 
         if event.action == "block" then
@@ -631,6 +637,7 @@ mp.register_script_message('menu-event', function(json)
             add_source_to_history("-" .. event.value)
             mp.commandv("script-message-to", "uosc", "close-menu", "menu_source")
             open_add_menu_uosc()
+            load_danmaku(true)
         end
 
         if event.action == "unblock" then
@@ -639,6 +646,7 @@ mp.register_script_message('menu-event', function(json)
             remove_source_from_history(event.value)
             mp.commandv("script-message-to", "uosc", "close-menu", "menu_source")
             open_add_menu_uosc()
+            load_danmaku(true)
         end
     end
 end)
