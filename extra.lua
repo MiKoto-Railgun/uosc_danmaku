@@ -35,10 +35,10 @@ local function load_extra_danmaku(url, episode, number, class, id, site, title, 
     add_danmaku_source(play_url, true)
 end
 
-local function query_tmdb_movies(title, menu)
+local function query_tmdb(title, class, menu)
     local encoded_title = url_encode(title)
-    local url = string.format("https://api.themoviedb.org/3/search/movie?api_key=%s&query=%s&language=zh-CN",
-    options.tmdb_api_key, encoded_title)
+    local url = string.format("https://api.themoviedb.org/3/search/%s?api_key=%s&query=%s&language=zh-CN",
+    class, options.tmdb_api_key, encoded_title)
 
     local cmd = {
         "curl",
@@ -59,59 +59,21 @@ local function query_tmdb_movies(title, menu)
         capture_stderr = true,
     })
 
-    if res.status ~= 0 then
+    local data = utils.parse_json(res.stdout)
+    if res.status ~= 0 or not data.results or #data.results == 0 then
         local message = "获取 tmdb 中文数据失败"
         if uosc_available then
             update_menu_uosc(menu.type, menu.title, message, menu.footnote, menu.cmd, title)
         else
             show_message(message, 3)
         end
-        msg.error("获取 tmdb 中文数据失败：" .. res.stderr)
-    end
-
-    local data = utils.parse_json(res.stdout)
-    if data and data.results and #data.results > 0 then
-        return data.results[1].title
-    end
-end
-
-local function query_tmdb_tv(title, menu)
-    local encoded_title = url_encode(title)
-    local url = string.format("https://api.themoviedb.org/3/search/tv?api_key=%s&query=%s&language=zh-CN",
-    options.tmdb_api_key, encoded_title)
-
-    local cmd = {
-        "curl",
-        "-s",
-        "-H", "accept: application/json",
-        url
-    }
-
-    if options.proxy ~= "" then
-        table.insert(cmd, '-x')
-        table.insert(cmd, options.proxy)
-    end
-
-    local res = mp.command_native({
-        name = "subprocess",
-        args = cmd,
-        capture_stdout = true,
-        capture_stderr = true,
-    })
-
-    if res.status ~= 0 then
-        local message = "获取 tmdb 中文数据失败"
-        if uosc_available then
-            update_menu_uosc(menu.type, menu.title, message, menu.footnote, menu.cmd, title)
+        msg.error("获取 tmdb 中文数据失败：" .. res.stdout)
+    else
+        if class == "tv" then
+            return data.results[1].name
         else
-            show_message(message, 3)
+            return data.results[1].title
         end
-        msg.error("获取 tmdb 中文数据失败：" .. res.stderr)
-    end
-
-    local data = utils.parse_json(res.stdout)
-    if data and data.results and #data.results > 0 then
-        return data.results[1].name
     end
 end
 
@@ -317,6 +279,7 @@ local function search_query(query, class, menu)
 end
 
 function query_extra(name, class)
+    local name = name:gsub("%s*%(%d-%)%s*$", "")
     local title = nil
     local class = class and class:lower()
     local message = "加载数据中..."
@@ -338,9 +301,9 @@ function query_extra(name, class)
     end
 
     if class == "dy" then
-        title = query_tmdb_movies(name, menu)
+        title = query_tmdb(name, "moive", menu)
     else
-        title = query_tmdb_tv(name, menu)
+        title = query_tmdb(name, "tv", menu)
     end
 
     if title then
