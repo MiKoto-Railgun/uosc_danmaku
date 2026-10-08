@@ -419,6 +419,7 @@ function get_episodes(animeTitle, bangumiId, api_server)
                 selectable = true,
             })
 
+            -- 标记标题推定集数：仅首个匹配项，定位索引 + hint 前缀
             if current_episode ~= nil and episode_index == nil then
                 local ep_num = tonumber(episode.episodeNumber)
                     or tonumber(tostring(episode.episodeNumber):match("%d+"))
