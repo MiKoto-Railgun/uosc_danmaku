@@ -209,27 +209,126 @@ function hide_danmaku_func()
     end
 end
 
+
 local message_overlay = mp.create_osd_overlay('ass-events')
-local message_timer = mp.add_timeout(3, function()
-    message_overlay:remove()
-end, true)
+-- 前向声明两个定时器：函数体要引用它们，必须让 local 声明先于函数定义（作用域要求）
+local message_timer
+local message_anim_timer
+-- 唯一的共享状态表：仅存定时器回调无法通过参数获得的跨帧数据
+local msg_state = {
+    anim = nil,       -- "in" / "out" / nil
+    t0 = 0,           -- 当前动画起始时刻
+    text = "",        -- 显示内容
+    shown = false,    -- 是否有可见内容
+    an = 7,           -- 对齐方式
+    dir = -1,         -- -1 从左进，1 从右进（右对齐配置镜像）
+    x = 0, y = 0,     -- 目标定位
+    cx = 0, ca = 0,   -- 当前帧位置/不透明度（0~255）
+    fx = 0, fa = 255  -- 出场起点（中途取消的平滑衔接）
+}
+local SLIDE = 90
+
+-- 渲染一帧：位置、透明度、文本、对齐全部由参数传入
+local function render_message(x, y, alpha, text, an)
+    -- （ASS 的 \alpha 语义与直觉相反，0 不透明 / 255 全透明，故 255-v 换算）
+    local b = math.max(0, math.min(255, math.floor(alpha + 0.5)))
+    local a = math.max(0, math.min(255, math.floor(255 - b + 0.5)))
+    message_overlay.data = string.format("{\\an%d\\pos(%d,%d)\\alpha&H%02X&}%s",
+        an, math.floor(x + 0.5), math.floor(y + 0.5), a, text)
+    message_overlay:update()
+end
+
+-- 逐帧动画：进度、位置、透明度均为函数内局部量，最后经参数传给渲染
+local function anim_tick()
+    if not msg_state.anim then
+        message_anim_timer:kill()
+        return
+    end
+
+    local ANIM_IN, ANIM_OUT = 0.28, 0.32
+    local dur = (msg_state.anim == "in") and ANIM_IN or ANIM_OUT
+    local t = (mp.get_time() - msg_state.t0) / dur
+    local x, alpha
+    if t >= 1 then
+        if msg_state.anim == "in" then
+            msg_state.anim, msg_state.shown = nil, true
+            msg_state.cx, msg_state.ca = msg_state.x, 255
+            render_message(msg_state.x, msg_state.y, 255, msg_state.text, msg_state.an)
+            message_anim_timer:kill()
+            message_timer:resume() -- 进入停留
+        else
+            msg_state.anim, msg_state.shown = nil, false
+            message_anim_timer:kill()
+            message_overlay:remove()
+        end
+        return
+    end
+
+    if msg_state.anim == "in" then
+        -- 缓动曲线：入场先快后慢
+        local p = 1 - (1 - t) ^ 3
+        x = msg_state.x + msg_state.dir * SLIDE * (1 - p) -- 从左侧向右滑入
+        alpha = 255 * p                                   -- 透明度 0 → 255
+    else
+        -- 缓动曲线：出场先慢后快
+        local p = t ^ 3
+        x = msg_state.fx + msg_state.dir * SLIDE * p      -- 向左滑出（从右往左消失）
+        alpha = msg_state.fa * (1 - p)                    -- 透明度 → 0
+    end
+    msg_state.cx, msg_state.ca = x, alpha
+    render_message(x, msg_state.y, alpha, msg_state.text, msg_state.an)
+end
+
+-- 出场：从当前帧位置平滑衔接（入场中途取消也不瞬移）
+local function start_message_out()
+    message_timer:kill()
+    if msg_state.anim == "out" then return end
+
+    if not msg_state.shown and msg_state.anim ~= "in" then
+        -- 无可见内容：直接清除
+        message_anim_timer:kill()
+        msg_state.anim = nil
+        message_overlay:remove()
+        return
+    end
+    msg_state.fx = (msg_state.anim == "in") and msg_state.cx or msg_state.x
+    msg_state.fa = (msg_state.anim == "in") and msg_state.ca or 255
+    msg_state.anim, msg_state.t0 = "out", mp.get_time()
+    message_anim_timer:kill()
+    message_anim_timer:resume()
+end
+
+-- 创建定时器
+message_timer = mp.add_timeout(3, start_message_out, true)
+message_anim_timer = mp.add_periodic_timer(0.016, anim_tick, true)
 
 function show_message(text, time)
+    text = tostring(text or "")
+    -- 清除类调用：空文本，或明确传入 <=0 的时间 → 出场动画
+    if text == "" or (time and time <= 0) then
+        start_message_out()
+        return
+    end
+
     message_timer.timeout = time or 3
     message_timer:kill()
-    message_overlay:remove()
-    local message = string.format("{\\an%d\\pos(%d,%d)}%s", options.message_anlignment,
-       options.message_x, options.message_y, text)
+    msg_state.an = math.floor(tonumber(options.message_anlignment) or 7)
+    msg_state.x = math.floor(tonumber(options.message_x) or 0)
+    msg_state.y = math.floor(tonumber(options.message_y) or 0)
+    msg_state.dir = (msg_state.an == 3 or msg_state.an == 6 or msg_state.an == 9) and 1 or -1
+    msg_state.text = text
+    msg_state.shown = false
+
     local width, height = 1920, 1080
-    local ratio = osd_width / osd_height
-    if width / height < ratio then
-        height = width / ratio
-    end
+    local ratio = (osd_width and osd_height and osd_height > 0) and (osd_width / osd_height) or (16 / 9)
+    if width / height < ratio then height = width / ratio end
     message_overlay.res_x = width
     message_overlay.res_y = height
-    message_overlay.data = message
-    message_overlay:update()
-    message_timer:resume()
+    msg_state.cx, msg_state.ca = msg_state.x + msg_state.dir * SLIDE, 0
+    render_message(msg_state.cx, msg_state.y, 0, msg_state.text, msg_state.an)
+    msg_state.anim, msg_state.t0 = "in", mp.get_time()
+    message_anim_timer:kill()
+    message_anim_timer:resume()
 end
 
 mp.observe_property('osd-width', 'number', function(_, value) osd_width = value or osd_width end)
